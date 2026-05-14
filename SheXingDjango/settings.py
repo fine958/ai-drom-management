@@ -175,7 +175,7 @@ CRONJOBS = [
 
 # ========== 豆包AI配置 ==========
 # 从火山引擎控制台获取的API Key
-DOUBAO_API_KEY = '61e8ee1d-87b3-46ac-ad9e-40554c91e48e'
+DOUBAO_API_KEY = os.getenv("DOUBAO_API_KEY")
 
 # 推理接入点ID
 DOUBAO_ENDPOINT_ID = 'ep-20260331153128-t77w2'
@@ -194,14 +194,14 @@ DOUBAO_TRANSLATION_MODEL = 'doubao-1-5-vision-pro-32k-250115'
 # ========== 蓝心大模型配置（用于文本生成）==========
 # 蓝心大模型 API 配置
 BLUELM_API_URL = "https://api-ai.vivo.com.cn/v1/chat/completions"  # 蓝心大模型API地址
-BLUELM_API_KEY = "sk-xuanji-2026714479-THdMeGpXZ25oWm5QdEFQVw=="        # 待申请的真实 API Key
+BLUELM_API_KEY = os.getenv("BLUELM_API_KEY")      # 待申请的真实 API Key
 BLUELM_USE_MOCK = False     # 开发阶段使用模拟数据，等拿到真实 Key 后改为 False
 BLUELM_MODEL = "Doubao-Seed-2.0-lite" # 蓝心大模型名称（参考官方文档确定）
 
 
 
 # vivo DeepSeek 配置（新接口）
-VIVO_DEEPSEEK_API_KEY = 'sk-xuanji-2026714479-THdMeGpXZ25oWm5QdEFQVw=='      # 替换成你在 vivo 平台申请的 AppKey
+VIVO_DEEPSEEK_API_KEY = os.getenv("VIVO_DEEPSEEK_API_KEY")        # 替换成你在 vivo 平台申请的 AppKey
 VIVO_DEEPSEEK_USE_MOCK = False            # 关闭 Mock
 VIVO_DEEPSEEK_MODEL = 'Volc-DeepSeek-V3.2'
 
