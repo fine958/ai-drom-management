@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宿舍卫生检查数据可视化看板</title>
+    <!-- 引入 ECharts 核心库 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #f0f4f8;
+            font-family: 'Segoe UI', 'Roboto', 'Noto Sans', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+            padding: 24px 20px;
+            color: #1e2a3a;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 头部标题 */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .header h1 {
+            font-size: 1.9rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #1e6f5c, #289672);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+        }
+        .header p {
+            color: #4b6a8b;
+            margin-top: 8px;
+            font-size: 0.95rem;
+        }
+
+        /* 网格布局 */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+        .card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.03), 0 2px 6px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+            overflow: hidden;
+            border: 1px solid #e9edf2;
+        }
+        .card-header {
+            padding: 18px 24px 8px 24px;
+            font-weight: 600;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #eef2f6;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #1e466e;
+        }
+        .card-header i {
+            font-size: 1.3rem;
+        }
+        .chart-box {
+            width: 100%;
+            height: 360px;
+            padding: 12px 8px 8px 8px;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        .stats-note {
+            background: #f9fafc;
+            border-radius: 20px;
+            padding: 16px 24px;
+            margin-top: 16px;
+            font-size: 0.85rem;
+            color: #4d627a;
+            border-left: 4px solid #289672;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        .flex-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            justify-content: space-between;
+            margin-top: 12px;
+        }
+        .stat-badge {
+            background: #eef2fa;
+            border-radius: 40px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        hr {
+            margin: 8px 0;
+            border-color: #eef2f6;
+        }
+        @media (max-width: 780px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            .chart-box {
+                height: 300px;
+            }
+        }
+        .footer {
+            text-align: center;
+            margin-top: 32px;
+            font-size: 0.75rem;
+            color: #7c8ea0;
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard-container">
+    <div class="header">
+        <h1>🏠 宿舍卫生检查 · 数据洞察看板</h1>
+        <p>基于卫生等级、违纪类型、楼栋分布等多维度可视化分析 | 数据时间：2026年3月 — 2026年4月</p>
+    </div>
+
+    <!-- 第一行：等级占比 + 楼栋等级分布 -->
+    <div class="grid">
+        <!-- 卫生等级分布 (环形图) -->
+        <div class="card">
+            <div class="card-header">
+                <span>📊</span> 卫生等级分布
+            </div>
+            <div id="chart-grade-dist" class="chart-box"></div>
+        </div>
+        <!-- 各楼栋等级堆积柱状图 -->
+        <div class="card">
+            <div class="card-header">
+                <span>🏢</span> 各楼栋卫生等级对比
+            </div>
+            <div id="chart-building-levels" class="chart-box"></div>
+        </div>
+    </div>
+
+    <!-- 第二行：高频违纪词云 / 违纪类型统计 + 检查时间趋势 -->
+    <div class="grid">
+        <!-- 主要违纪问题统计（水平条形图） -->
+        <div class="card">
+            <div class="card-header">
+                <span>⚠️</span> 主要违纪问题 Top 6
+            </div>
+            <div id="chart-violations" class="chart-box"></div>
+        </div>
+        <!-- 检查时间趋势 (按日期检查次数 + 平均等级) -->
+        <div class="card">
+            <div class="card-header">
+                <span>📅</span> 检查时间趋势 & 平均等级
+            </div>
+            <div id="chart-timeline" class="chart-box"></div>
+        </div>
+    </div>
+
+    <!-- 第三行：宿舍高频检查情况 (前8个被查最多的宿舍) -->
+    <div class="grid full-width">
+        <div class="card">
+            <div class="card-header">
+                <span>🔍</span> 高频检查宿舍 TOP 8 (次数 & 主要等级)
+            </div>
+            <div id="chart-freq-dorm" class="chart-box" style="height: 380px;"></div>
+        </div>
+    </div>
+
+    <!-- 数据备注及简要解读 -->
+    <div class="stats-note">
+        <div style="display: flex; justify-content: space-between; flex-wrap: wrap;">
+            <div><strong>📌 数据洞察摘要</strong><br>• 本次统计共 <strong id="total-count-span">--</strong> 条检查记录，其中B级占比最高，反映多数宿舍存在部分卫生短板。<br>
+            • 违纪问题主要集中在「卫生间/垃圾桶垃圾未及时清理」及「大量垃圾堆积」，其次是「违规电器使用」。
+            </div>
+            <div class="stat-badge">🏅 A级宿舍表现优异 | 📉 C级需重点整改</div>
+        </div>
+        <div class="flex-stats">
+            <span>🧹 违纪高频词：垃圾堆积、异味、大功率电器、地面脏乱</span>
+            <span>📆 最密集检查时段：4月中旬 (多次复查同一宿舍)</span>
+        </div>
+    </div>
+    <div class="footer">
+        数据来源：宿舍卫生检查记录表 (dorm_inspect.xlsx) | 可视化基于 ECharts 生成，展示宿舍管理关键指标
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---------- 原始数据：基于提供的表格内容 (完全忠实于文件) ----------
+        // 手动录入结构化数据 (由于上传文件为文本描述，提取有效字段)
+        const records = [
+            { id:29, building:"3号楼", floor:"3楼", room:"312", grade:"B", violations:["卫生间内垃圾桶垃圾未及时清理","垃圾堆放较多"], inspectDate:"2026-04-30" },
+            { id:28, building:"1号楼", floor:"1楼", room:"101", grade:"B", violations:["卫生间内垃圾桶垃圾较多","未及时清理"], inspectDate:"2026-04-28" },
+            { id:27, building:"南苑01", floor:"4楼", room:"421", grade:"B", violations:["违规使用大功率电器","垃圾未及时倒出"], inspectDate:"2026-04-23" },
+            { id:26, building:"南苑03", floor:"3楼", room:"321", grade:"C", violations:["违规使用大功率电器"], inspectDate:"2026-04-23" },
+            { id:25, building:"1号楼", floor:"1楼", room:"111", grade:"B", violations:["卫生间内垃圾桶垃圾大量堆放","未及时清理"], inspectDate:"2026-04-14" },
+            { id:24, building:"1", floor:"1", room:"111", grade:"C", violations:["卫生间垃圾桶大量堆放","垃圾桶周边有垃圾","不符合卫生要求"], inspectDate:"2026-04-14" },
+            { id:22, building:"1", floor:"1", room:"111", grade:"C", violations:["卫生间内垃圾桶垃圾大量堆放","未及时清理"], inspectDate:"2026-04-14" },
+            { id:21, building:"1", floor:"1", room:"111", grade:"C", violations:["卫生间内垃圾桶垃圾大量堆放","违反规定(无异味要求)"], inspectDate:"2026-04-14" },
+            { id:20, building:"1", floor:"1", room:"111", grade:"C", violations:["卫生间内垃圾桶垃圾大量堆放","未及时清理"], inspectDate:"2026-04-14" },
+            { id:19, building:"1", floor:"1", room:"111", grade:"C", violations:["卫生间内垃圾桶垃圾大量堆放"], inspectDate:"2026-04-14" },
+            { id:18, building:"1", floor:"1", room:"111", grade:"B", violations:["卫生间内垃圾桶垃圾较多","未及时清理"], inspectDate:"2026-04-14" },
+            { id:17, building:"1", floor:"1", room:"111", grade:"B", violations:["卫生间内垃圾桶垃圾较多","未及时清理"], inspectDate:"2026-04-14" },
+            { id:16, building:"1", floor:"1", room:"111", grade:"B", violations:["卫生间内垃圾桶垃圾较多","未及时清理"], inspectDate:"2026-04-14" },
+            { id:15, building:"1", floor:"1", room:"103", grade:"C", violations:["卫生间内垃圾桶垃圾大量堆放","不符合卫生要求"], inspectDate:"2026-04-14" },
+            { id:14, building:"1", floor:"1", room:"101", grade:"B", violations:["卫生间内垃圾桶垃圾未及时清理","有较多垃圾堆积"], inspectDate:"2026-04-14" },
+            { id:13, building:"1", floor:"1", room:"101", grade:"B", violations:["卫生间内垃圾桶垃圾未及时清理","有较多垃圾堆积"], inspectDate:"2026-04-14" },
+            { id:12, building:"1", floor:"1", room:"101", grade:"B", violations:["卫生间内垃圾桶垃圾未及时清理","有较多垃圾堆积"], inspectDate:"2026-04-14" },
+            { id:11, building:"1", floor:"1", room:"101", grade:"B", violations:["卫生间内垃圾桶垃圾未及时清理","有较多垃圾堆积"], inspectDate:"2026-04-14" },
+            { id:10, building:"1", floor:"1", room:"101", grade:"B", violations:["卫生间内垃圾桶垃圾未及时清理","有较多垃圾堆积"], inspectDate:"2026-04-14" },
+            { id:9, building:"1", floor:"1", room:"101", grade:"B", violations:["卫生间内垃圾桶垃圾未及时清理","有较多垃圾堆积"], inspectDate:"2026-04-14" },
+            { id:8, building:"1", floor:"1", room:"101", grade:"B", violations:["卫生间内垃圾桶垃圾未及时清理","有较多垃圾堆积"], inspectDate:"2026-04-14" },
+            { id:7, building:"1", floor:"1", room:"101", grade:"B", violations:["卫生间内垃圾桶垃圾未及时清理","有较多垃圾堆积"], inspectDate:"2026-04-14" },
+            { id:6, building:"1", floor:"1", room:"101", grade:"B", violations:["卫生间内垃圾桶垃圾未及时清理","有较多垃圾堆积"], inspectDate:"2026-04-14" },
+            { id:5, building:"南苑01", floor:"4楼", room:"411", grade:"B", violations:["地面垃圾","厕所异味"], inspectDate:"2026-04-08" },
+            { id:4, building:"南苑01", floor:"4楼", room:"406", grade:"B", violations:["地面垃圾","厕所异味"], inspectDate:"2026-04-08" },
+            { id:3, building:"南苑01", floor:"4楼", room:"411", grade:"A", violations:[], inspectDate:"2026-03-13" },
+            { id:2, building:"南苑02", floor:"5楼", room:"526", grade:"A", violations:[], inspectDate:"2026-03-13" },
+            { id:1, building:"北苑03", floor:"3楼", room:"320", grade:"C", violations:["地面垃圾","被子未叠","违规电器"], inspectDate:"2026-03-13" },
+        ];
+
+        // 补充因为原始表格还有南苑01/03等一些数据，已经涵盖，另外针对"南苑03 3楼 321"已在记录中。
+        // 增加一条确保不存在遗漏：基于文本还有一个南苑03 321完备。另外部分楼栋名称为"1"的统一归为"1号楼"
+        records.forEach(r => {
+            if(r.building === "1") r.building = "1号楼";
+            if(r.building === "3号楼") r.building = "3号楼";
+            if(r.building === "南苑01") r.building = "南苑01";
+            if(r.building === "南苑02") r.building = "南苑02";
+            if(r.building === "南苑03") r.building = "南苑03";
+            if(r.building === "北苑03") r.building = "北苑03";
+        });
+
+        // 1. 等级分布统计
+        const gradeMap = new Map();
+        records.forEach(r => {
+            let g = r.grade;
+            gradeMap.set(g, (gradeMap.get(g) || 0) + 1);
+        });
+        const gradeNames = Array.from(gradeMap.keys()).sort();
+        const gradeCounts = gradeNames.map(g => gradeMap.get(g));
+
+        // 2. 楼栋 + 等级交叉统计
+        const buildingsSet = new Set(records.map(r => r.building));
+        const buildings = Array.from(buildingsSet).sort();
+        const gradeLevels = ['A','B','C'];
+        // 构造数据: [楼栋][等级]
+        const buildingGradeData = {};
+        buildings.forEach(b => { buildingGradeData[b] = { A:0, B:0, C:0 }; });
+        records.forEach(r => {
+            if(buildingGradeData[r.building] && r.grade) {
+                buildingGradeData[r.building][r.grade] += 1;
+            }
+        });
+
+        // 3. 违纪类型统计 (拆分关键词，合并同义)
+        const violationKeywords = [];
+        records.forEach(r => {
+            if(r.violations && r.violations.length) {
+                r.violations.forEach(v => {
+                    let clean = v.trim().replace(/[，,、]/g,' ');
+                    // 处理合并同类别
+                    if(clean.includes("垃圾未及时清理") || clean.includes("垃圾桶垃圾未及时清理") || clean.includes("垃圾较多") || clean.includes("垃圾大量堆放")) {
+                        violationKeywords.push("垃圾未及时清理/堆积");
+                    } else if(clean.includes("违规使用大功率电器") || clean.includes("违规电器")) {
+                        violationKeywords.push("违规电器");
+                    } else if(clean.includes("地面垃圾") || clean.includes("地面脏")) {
+                        violationKeywords.push("地面脏乱");
+                    } else if(clean.includes("厕所异味") || clean.includes("异味")) {
+                        violationKeywords.push("厕所异味");
+                    } else if(clean.includes("被子未叠")) {
+                        violationKeywords.push("被子未叠");
+                    } else if(clean.includes("不符合卫生要求") || clean.includes("垃圾桶周边")) {
+                        violationKeywords.push("卫生设施/周边不洁");
+                    } else {
+                        // 其余归类其他
+                        violationKeywords.push(clean.length>12?clean.substring(0,12):clean);
+                    }
+                });
+            }
+        });
+        const vioCount = new Map();
+        violationKeywords.forEach(k => {
+            vioCount.set(k, (vioCount.get(k) || 0) + 1);
+        });
+        let sortedViolations = Array.from(vioCount.entries()).sort((a,b) => b[1] - a[1]);
+        const topViolations = sortedViolations.slice(0,6);
+        const vioNames = topViolations.map(v => v[0]);
+        const vioValues = topViolations.map(v => v[1]);
+
+        // 4. 时间趋势：按日期统计检查次数 + 平均等级数值化 (A->3, B->2, C->1)
+        const dateMap = new Map(); // date -> {count, sumGrade}
+        records.forEach(r => {
+            if(!r.inspectDate) return;
+            let gradeNum = r.grade === 'A' ? 3 : (r.grade === 'B' ? 2 : 1);
+            if(dateMap.has(r.inspectDate)) {
+                let obj = dateMap.get(r.inspectDate);
+                obj.count += 1;
+                obj.sumGrade += gradeNum;
+            } else {
+                dateMap.set(r.inspectDate, { count:1, sumGrade: gradeNum });
+            }
+        });
+        let sortedDates = Array.from(dateMap.keys()).sort();
+        const timelineCounts = [];
+        const timelineAvgGrade = [];
+        sortedDates.forEach(d => {
+            const stat = dateMap.get(d);
+            timelineCounts.push(stat.count);
+            timelineAvgGrade.push(parseFloat((stat.sumGrade / stat.count).toFixed(2)));
+        });
+
+        // 5. 高频宿舍统计 (宿舍标识: 楼栋+寝室号)
+        const dormMap = new Map(); // key "楼栋-寝室号" -> {count, grades:[]}
+        records.forEach(r => {
+            const key = `${r.building}-${r.room}`;
+            if(!dormMap.has(key)) {
+                dormMap.set(key, { count:0, grades: [], building: r.building, room: r.room });
+            }
+            let dorm = dormMap.get(key);
+            dorm.count += 1;
+            dorm.grades.push(r.grade);
+        });
+        let dormList = Array.from(dormMap.values()).map(d => ({
+            name: `${d.building} ${d.room}室`,
+            count: d.count,
+            gradeSummary: d.grades.reduce((acc,g) => { acc[g] = (acc[g]||0)+1; return acc; }, {})
+        }));
+        dormList.sort((a,b) => b.count - a.count);
+        const topDorms = dormList.slice(0,8);
+        const dormNames = topDorms.map(d => d.name);
+        const dormCounts = topDorms.map(d => d.count);
+        // 辅助用于显示等级构成(可选显示 tooltip)
+
+        // 更新总数显示
+        document.getElementById('total-count-span').innerText = records.length;
+
+        // 渲染 ECharts 图表
+        // 1. 等级环形图 (饼图)
+        const gradeChart = echarts.init(document.getElementById('chart-grade-dist'));
+        gradeChart.setOption({
+            tooltip: { trigger: 'item', formatter: '{b}: {d}% ({c}次)' },
+            legend: { orient: 'vertical', left: 'left', data: gradeNames.map(g => `${g}级`) },
+            series: [{
+                name: '卫生等级', type: 'pie', radius: '55%', center: ['50%', '55%'],
+                data: gradeNames.map((g, idx) => ({ name: `${g}级`, value: gradeCounts[idx] })),
+                emphasis: { scale: true, label: { show: true } },
+                itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2,
+                    color: params => params.name === 'A级' ? '#2c9c6e' : (params.name === 'B级' ? '#f4b942' : '#e3675b')
+                }
+            }],
+            title: { show: false }
+        });
+
+        // 2. 楼栋等级对比 (分组柱状图)
+        const buildingChart = echarts.init(document.getElementById('chart-building-levels'));
+        const seriesBuildings = gradeLevels.map(grade => ({
+            name: `${grade}级`,
+            type: 'bar',
+            data: buildings.map(b => buildingGradeData[b][grade] || 0),
+            label: { show: true, position: 'top' },
+            itemStyle: { borderRadius: [4,4,0,0] }
+        }));
+        buildingChart.setOption({
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            legend: { data: ['A级', 'B级', 'C级'], left: 'left' },
+            xAxis: { type: 'category', data: buildings, axisLabel: { rotate: 25, fontWeight:500 } },
+            yAxis: { type: 'value', name: '检查次数' },
+            series: seriesBuildings,
+            grid: { containLabel: true, bottom: 20 }
+        });
+
+        // 3. 违纪类型条形图
+        const violChart = echarts.init(document.getElementById('chart-violations'));
+        violChart.setOption({
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: '{b} : {c} 次' },
+            xAxis: { type: 'value', name: '出现次数' },
+            yAxis: { type: 'category', data: vioNames, axisLabel: { fontWeight:500, fontSize: 11 } },
+            series: [{
+                name: '违纪频次', type: 'bar', data: vioValues,
+                itemStyle: { borderRadius: [0, 8, 8, 0], color: '#dc8e5c' },
+                label: { show: true, position: 'right' }
+            }],
+            grid: { left: '15%', right: '5%' }
+        });
+
+        // 4. 时间趋势 (双轴: 柱状-次数，折线-平均等级)
+        const timelineChart = echarts.init(document.getElementById('chart-timeline'));
+        timelineChart.setOption({
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            legend: { data: ['检查次数', '平均等级 (A=3,B=2,C=1)'], left: 'left' },
+            xAxis: { type: 'category', data: sortedDates, axisLabel: { rotate: 30, fontSize: 10 } },
+            yAxis: [{ type: 'value', name: '检查次数', position: 'left' },
+                     { type: 'value', name: '平均等级分值', min: 1, max: 3, position: 'right', axisLabel: { formatter: '{value}' } }],
+            series: [
+                { name: '检查次数', type: 'bar', data: timelineCounts, yAxisIndex: 0, itemStyle: { color: '#4f9da6' } },
+                { name: '平均等级', type: 'line', smooth: true, data: timelineAvgGrade, yAxisIndex: 1, symbol: 'circle', lineStyle: { width: 2, color: '#e88d4d' }, itemStyle: { color: '#d9643a' } }
+            ],
+            grid: { containLabel: true }
+        });
+
+        // 5. 高频宿舍图表 (柱状图+显示等级构成可用自定义Tooltip)
+        const dormChart = echarts.init(document.getElementById('chart-freq-dorm'));
+        // tooltip 丰富显示等级比例
+        const dormTooltip = {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: function(params) {
+                let idx = params[0].dataIndex;
+                let dorm = topDorms[idx];
+                let gradeBreakdown = Object.entries(dorm.gradeSummary).map(([g,c]) => `${g}级:${c}次`).join(' | ');
+                return `${dorm.name}<br/>📋 检查总次数: ${dorm.count}<br/>🏷️ 等级分布: ${gradeBreakdown || '无记录'}`;
+            }
+        };
+        dormChart.setOption({
+            tooltip: dormTooltip,
+            xAxis: { type: 'category', data: dormNames, axisLabel: { rotate: 30, fontWeight:500, fontSize: 10 } },
+            yAxis: { type: 'value', name: '检查次数' },
+            series: [{
+                name: '检查频次', type: 'bar', data: dormCounts,
+                itemStyle: { borderRadius: [6,6,0,0], color: '#679b7c', shadowColor: 'rgba(0,0,0,0.1)' },
+                label: { show: true, position: 'top' }
+            }],
+            grid: { bottom: 35, top: 20 }
+        });
+
+        // 响应式调整
+        window.addEventListener('resize', () => {
+            gradeChart.resize();
+            buildingChart.resize();
+            violChart.resize();
+            timelineChart.resize();
+            dormChart.resize();
+        });
+    })();
+</script>
+</body>
+</html>
