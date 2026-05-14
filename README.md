@@ -24,7 +24,35 @@
 ---
 
 # 项目亮点
+# 项目截图
 
+## 系统首页
+
+![系统首页](images/home.jpg)
+
+---
+
+## AI违规识别
+
+![AI违规识别](images/ai-check.png)
+
+---
+
+## 智能预警模块
+
+![智能预警](images/warning.png)
+
+---
+
+## 数据可视化分析
+
+![数据可视化](images/report.jpg)
+
+---
+
+## AI助手模块
+
+![AI助手](images/assistant.jpg)
 ## AI视觉违规识别
 
 宿管拍摄宿舍照片后：
